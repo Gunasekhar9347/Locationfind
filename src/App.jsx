@@ -281,7 +281,7 @@ function LocationForm() {
         const { latitude, longitude, accuracy } = position.coords;
 
         // ✅ Accept ONLY accuracy ≤ 21 meters
-        if (accuracy <= 21) {
+        if (accuracy <= 22) {
           const lat = latitude.toFixed(6);
           const lng = longitude.toFixed(6);
 
