@@ -219,6 +219,7 @@ function LocationForm() {
     state: "",
     zipcode: "",
     country: "",
+    locationType: "",
     error: "",
   });
 
@@ -226,37 +227,44 @@ function LocationForm() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  /* ================= REVERSE GEOCODING ================= */
-  const fetchAddressFromLatLng = async (lat, lng) => {
+  /* ================= GOOGLE REVERSE GEOCODING ================= */
+  const fetchExactAddress = async (lat, lng) => {
     try {
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
+        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${
+          import.meta.env.VITE_GOOGLE_MAPS_API_KEY
+        }`
       );
 
       const data = await response.json();
-      const address = data.address || {};
+
+      if (!data.results || !data.results.length) {
+        throw new Error("No address found");
+      }
+
+      const result = data.results[0];
+      const components = result.address_components;
+
+      const getValue = (type) =>
+        components.find((c) => c.types.includes(type))?.long_name || "";
 
       setForm((prev) => ({
         ...prev,
-
-        // ✅ FULL HUMAN-READABLE ADDRESS
-        fullAddress: data.display_name || "",
-
-        // Optional structured fields
+        fullAddress: result.formatted_address,
         area:
-          address.suburb ||
-          address.neighbourhood ||
-          address.village ||
+          getValue("sublocality") ||
+          getValue("neighborhood") ||
           "",
-        city: address.city || address.town || address.county || "",
-        state: address.state || "",
-        zipcode: address.postcode || "",
-        country: address.country || "",
+        city: getValue("locality"),
+        state: getValue("administrative_area_level_1"),
+        zipcode: getValue("postal_code"),
+        country: getValue("country"),
+        locationType: result.geometry.location_type, // ROOFTOP / RANGE_INTERPOLATED
       }));
-    } catch (error) {
+    } catch (err) {
       setForm((prev) => ({
         ...prev,
-        error: "Failed to fetch address details",
+        error: "Failed to fetch exact address",
       }));
     }
   };
@@ -266,7 +274,7 @@ function LocationForm() {
     if (!navigator.geolocation) {
       setForm((prev) => ({
         ...prev,
-        error: "Geolocation is not supported by this browser",
+        error: "Geolocation not supported",
       }));
       return;
     }
@@ -280,8 +288,8 @@ function LocationForm() {
       (position) => {
         const { latitude, longitude, accuracy } = position.coords;
 
-        // ✅ Accept ONLY accuracy ≤ 21 meters
-        if (accuracy <= 22) {
+        // Accept only high accuracy
+        if (accuracy <= 21) {
           const lat = latitude.toFixed(6);
           const lng = longitude.toFixed(6);
 
@@ -293,9 +301,8 @@ function LocationForm() {
             error: "",
           }));
 
-          fetchAddressFromLatLng(lat, lng);
+          fetchExactAddress(lat, lng);
 
-          // Stop watching once accurate location is found
           navigator.geolocation.clearWatch(watchIdRef.current);
         } else {
           setForm((prev) => ({
@@ -324,7 +331,7 @@ function LocationForm() {
   return (
     <div style={styles.page}>
       <div style={styles.card}>
-        <h2 style={styles.title}>📍 High Accuracy Location</h2>
+        <h2 style={styles.title}>📍 Exact Address Detection</h2>
 
         <input
           style={styles.input}
@@ -346,13 +353,26 @@ function LocationForm() {
         <input style={styles.input} placeholder="Longitude" value={form.longitude} readOnly />
         <input style={styles.input} placeholder="Accuracy" value={form.accuracy} readOnly />
 
-        {/* ✅ FULL ADDRESS */}
         <textarea
           style={{ ...styles.input, height: "90px" }}
-          placeholder="Full Address"
+          placeholder="Full Exact Address"
           value={form.fullAddress}
           readOnly
         />
+
+        {form.locationType && (
+          <p style={{ textAlign: "center", fontSize: "14px" }}>
+            📌 Accuracy Type:{" "}
+            <b
+              style={{
+                color:
+                  form.locationType === "ROOFTOP" ? "green" : "orange",
+              }}
+            >
+              {form.locationType}
+            </b>
+          </p>
+        )}
 
         <input style={styles.input} placeholder="Area" value={form.area} readOnly />
         <input style={styles.input} placeholder="City" value={form.city} readOnly />
@@ -361,7 +381,7 @@ function LocationForm() {
         <input style={styles.input} placeholder="Country" value={form.country} readOnly />
 
         <button style={styles.button} onClick={getLocation}>
-          📡 Get High Accuracy Location
+          📡 Get Exact Address
         </button>
 
         {form.error && <p style={styles.error}>{form.error}</p>}
@@ -384,7 +404,7 @@ const styles = {
     fontFamily: "Arial",
   },
   card: {
-    width: "380px",
+    width: "390px",
     background: "#fff",
     padding: "25px",
     borderRadius: "14px",
@@ -417,3 +437,4 @@ const styles = {
     marginTop: "10px",
   },
 };
+
