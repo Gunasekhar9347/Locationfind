@@ -216,11 +216,10 @@ function LocationForm() {
     fullAddress: "",
     area: "",
     city: "",
-    district: "", // ✅ NEW
+    district: "", // ✅ ADD DISTRICT
     state: "",
     zipcode: "",
     country: "",
-    locationType: "",
     error: "",
   });
 
@@ -228,59 +227,55 @@ function LocationForm() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  /* ================= GOOGLE REVERSE GEOCODING ================= */
-  const fetchExactAddress = async (lat, lng) => {
+  /* ================= REVERSE GEOCODING ================= */
+  const fetchAddressFromLatLng = async (lat, lng) => {
     try {
       const response = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${
-          import.meta.env.VITE_GOOGLE_MAPS_API_KEY
-        }`
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
       );
 
       const data = await response.json();
-
-      if (!data.results || !data.results.length) {
-        throw new Error("No address found");
-      }
-
-      const result = data.results[0];
-      const components = result.address_components;
-
-      const getValue = (type) =>
-        components.find((c) => c.types.includes(type))?.long_name || "";
+      const address = data.address || {};
 
       setForm((prev) => ({
         ...prev,
-        fullAddress: result.formatted_address,
+
+        // ✅ FULL HUMAN-READABLE ADDRESS
+        fullAddress: data.display_name || "",
 
         // Area / locality
         area:
-          getValue("sublocality") ||
-          getValue("neighborhood") ||
+          address.suburb ||
+          address.neighbourhood ||
+          address.village ||
           "",
 
         // City
-        city: getValue("locality"),
+        city:
+          address.city ||
+          address.town ||
+          address.municipality ||
+          "",
 
-        // ✅ DISTRICT (India specific)
-        district: getValue("administrative_area_level_2"),
+        // ✅ DISTRICT (OSM)
+        district:
+          address.county ||        // most common
+          address.state_district || // fallback
+          "",
 
         // State
-        state: getValue("administrative_area_level_1"),
+        state: address.state || "",
 
-        // Zipcode
-        zipcode: getValue("postal_code"),
+        // Zip
+        zipcode: address.postcode || "",
 
         // Country
-        country: getValue("country"),
-
-        // Accuracy type
-        locationType: result.geometry.location_type,
+        country: address.country || "",
       }));
-    } catch (err) {
+    } catch (error) {
       setForm((prev) => ({
         ...prev,
-        error: "Failed to fetch exact address",
+        error: "Failed to fetch address details",
       }));
     }
   };
@@ -290,7 +285,7 @@ function LocationForm() {
     if (!navigator.geolocation) {
       setForm((prev) => ({
         ...prev,
-        error: "Geolocation not supported",
+        error: "Geolocation is not supported by this browser",
       }));
       return;
     }
@@ -304,7 +299,7 @@ function LocationForm() {
       (position) => {
         const { latitude, longitude, accuracy } = position.coords;
 
-        // Accept only high accuracy (Mobile friendly)
+        // Accept ONLY accuracy ≤ 21 meters
         if (accuracy <= 21) {
           const lat = latitude.toFixed(6);
           const lng = longitude.toFixed(6);
@@ -317,7 +312,7 @@ function LocationForm() {
             error: "",
           }));
 
-          fetchExactAddress(lat, lng);
+          fetchAddressFromLatLng(lat, lng);
 
           navigator.geolocation.clearWatch(watchIdRef.current);
         } else {
@@ -347,7 +342,7 @@ function LocationForm() {
   return (
     <div style={styles.page}>
       <div style={styles.card}>
-        <h2 style={styles.title}>📍 Exact Address Detection</h2>
+        <h2 style={styles.title}>📍 High Accuracy Location</h2>
 
         <input
           style={styles.input}
@@ -371,34 +366,21 @@ function LocationForm() {
 
         <textarea
           style={{ ...styles.input, height: "90px" }}
-          placeholder="Full Exact Address"
+          placeholder="Full Address"
           value={form.fullAddress}
           readOnly
         />
-
-        {form.locationType && (
-          <p style={{ textAlign: "center", fontSize: "14px" }}>
-            📌 Accuracy Type:{" "}
-            <b
-              style={{
-                color:
-                  form.locationType === "ROOFTOP" ? "green" : "orange",
-              }}
-            >
-              {form.locationType}
-            </b>
-          </p>
-        )}
 
         <input style={styles.input} placeholder="Area" value={form.area} readOnly />
         <input style={styles.input} placeholder="City" value={form.city} readOnly />
         <input style={styles.input} placeholder="District" value={form.district} readOnly />
         <input style={styles.input} placeholder="State" value={form.state} readOnly />
-        <input style={styles.input} placeholder="Zip Code" value={form.zipcode} readOnly />
         <input style={styles.input} placeholder="Country" value={form.country} readOnly />
+        <input style={styles.input} placeholder="Zip Code" value={form.zipcode} readOnly />
+        
 
         <button style={styles.button} onClick={getLocation}>
-          📡 Get Exact Address
+          📡 Get High Accuracy Location
         </button>
 
         {form.error && <p style={styles.error}>{form.error}</p>}
@@ -421,7 +403,7 @@ const styles = {
     fontFamily: "Arial",
   },
   card: {
-    width: "390px",
+    width: "380px",
     background: "#fff",
     padding: "25px",
     borderRadius: "14px",
