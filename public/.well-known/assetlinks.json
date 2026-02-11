@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.visionary.app",
+      "sha256_cert_fingerprints": [
+        "95:D9:7E:39:9D:35:74:3A:2A:98:2D:66:A7:48:34:A9:41:A2:8E:81:42:E8:45:AC:58:D3:D7:CE:3A:10:FE:6A"
+      ]
+    }
+  }
+]
