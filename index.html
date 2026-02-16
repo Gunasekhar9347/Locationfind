@@ -3,14 +3,18 @@
   <head>
     <meta charset="UTF-8" />
 
-    <!-- PWA additions -->
-    <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#0d6efd" />
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, viewport-fit=cover" />   <!-- 🔥 IMPORTANT: Edge-to-edge display -->
+  <link rel="manifest" href="/manifest.json" />   <!-- PWA -->
 
-    <!-- Existing -->
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Visionary App</title>
+  <meta name="theme-color" content="#0d6efd" />  <!-- ✅ MUST match your app top color --> 
+  <meta name="mobile-web-app-capable" content="yes" />    <!-- 🔥 Add this (Android fullscreen support) -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />      <!-- Optional but recommended -->
+
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />    <!-- Existing -->
+  <title>Visionary App</title>
+</head>
+
   </head>
 
   <body>
